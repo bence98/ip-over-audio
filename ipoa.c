@@ -75,10 +75,11 @@ int tun_alloc(char *dev, int flags) {
 	return fd;
 }
 
+unsigned int samp_rate = 44100;
+snd_pcm_uframes_t period = 128;
 snd_pcm_t *open_playback(){
 	snd_pcm_t *handle;
 	snd_pcm_hw_params_t *params;
-	unsigned int val;
 	int dir;
 	int rc = snd_pcm_open(&handle, "default", SND_PCM_STREAM_PLAYBACK, 0);
 	if (rc < 0) {
@@ -86,37 +87,6 @@ snd_pcm_t *open_playback(){
 		exit(1);
 	}
 
-	/* Allocate a hardware parameters object. */
-	snd_pcm_hw_params_alloca(&params);
-
-	/* Fill it in with default values. */
-	snd_pcm_hw_params_any(handle, params);
-
-	/* Set the desired hardware parameters. */
-
-	/* Interleaved mode */
-	snd_pcm_hw_params_set_access(handle, params, SND_PCM_ACCESS_RW_INTERLEAVED);
-
-	/* Signed 16-bit little-endian format */
-	snd_pcm_hw_params_set_format(handle, params, SND_PCM_FORMAT_S16_LE);
-
-	snd_pcm_hw_params_set_channels(handle, params, 1);
-
-	/* 44100 bits/second sampling rate (CD quality) */
-	val = 44100;
-	snd_pcm_hw_params_set_rate_near(handle, params, &val, &dir);
-
-	/* Write the parameters to the driver */
-	rc = snd_pcm_hw_params(handle, params);
-	return handle;
-}
-
-unsigned int samp_rate = 44100;
-snd_pcm_uframes_t period = 128;
-void setup_playback(snd_pcm_t *handle){
-	int dir = 1;
-	int rc;
-	snd_pcm_hw_params_t *params;
 	/* Allocate a hardware parameters object. */
 	snd_pcm_hw_params_alloca(&params);
 
@@ -146,6 +116,7 @@ void setup_playback(snd_pcm_t *handle){
 	}
 	snd_pcm_hw_params_get_rate(params, &samp_rate, &dir);
 	snd_pcm_hw_params_get_period_size(params, &period, &dir);
+	return handle;
 }
 
 int tx_state = 0;
@@ -236,7 +207,6 @@ _Noreturn int main(int argc, char *argv[]) {
 	pthread_t snd_thread_id;
 
 	pcm_handle = open_playback();
-	setup_playback(pcm_handle);
 	pthread_create(&snd_thread_id, NULL, sound_thread, (void*)pcm_handle);
 
 	/* initialize tun/tap interface */
